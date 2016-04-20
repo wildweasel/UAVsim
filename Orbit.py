@@ -2,25 +2,36 @@ from tkinter import *
 import numpy as np
 import cv2
 from OrbitCamera import OrbitCamera
+from OrbitControl import OrbitControl
 from numpy.linalg import inv
 
 class Orbit:
 	
-	def __init__(self, xMax, yMax, textVars, resolution):
+	def __init__(self, xMax, yMax, textVars, resolution, topMenuRow, bottomMenuRow, initValues, showFlightPath):
 		
 		self.rawOverhead = None
 		
-		[self.majorAxis, self.minorAxis, self.centerX, self.centerY, self.axisYawAngle, self.height, self.cameraPan, self.cameraTilt, self.cameraUpAngle] = textVars
+		self.orbitControls = OrbitControl(topMenuRow, bottomMenuRow, initValues, lambda: self.calcFlightPath())				
+		[self.majorAxis, self.minorAxis, self.centerX, self.centerY, self.axisYawAngle, self.height, self.cameraPan, 
+		self.cameraTilt, self.cameraUpAngle] = self.orbitControls.returnControlValues()
 		
 		self.resolution = resolution
 		
 		self.cameraDimensions = (xMax, yMax)		
 		self.orbitCamera = OrbitCamera(self.cameraDimensions)
+		
+		self.showFlightPath = showFlightPath
 
 	def setOverhead(self, overhead):
 		self.rawOverhead = overhead.copy()
+		
+	def enableControls(self):
+		self.orbitControls.enable()
+		
+	def disableControls(self):
+		self.orbitControls.disable()
 	
-	def calcFlightPath(self, cameraMatrix):
+	def calcFlightPath(self):
 		
 		if self.rawOverhead is None:
 			print("Error: Attempted to calcFlightPath while self.rawOverhead was None")
@@ -46,16 +57,17 @@ class Orbit:
 		self.flightHeadings = [np.arctan2(-a*np.sin(t)*np.sin(alpha)+b*np.cos(t)*np.cos(alpha),
 							   -a*np.sin(t)*np.cos(alpha)-b*np.cos(t)*np.sin(alpha)) for t in np.linspace(0,2*np.pi,self.resolution)]
 		
-		self.orbitCamera.buildCamera(cameraMatrix, float(self.cameraPan.get()), float(self.cameraTilt.get()), float(self.cameraUpAngle.get()))
-
 		self.overheadFlightPath = self.rawOverhead.copy()	
 		
 		for pos in self.flightPath:
 			cv2.circle(self.overheadFlightPath, pos[0:2], 10, (255, 255, 0), -1)
 			
-		return self.overheadFlightPath
+		self.showFlightPath(self.overheadFlightPath)
 		
-	def mapFlightPath(self, currentPosition):
+	def mapFlightPath(self, currentPosition, cameraMatrix):
+		
+		self.orbitCamera.buildCamera(cameraMatrix, float(self.cameraPan.get()), float(self.cameraTilt.get()), float(self.cameraUpAngle.get()))
+
 		
 		# To draw the markers that change as the UAV moves
 		currentOverheadPath = self.overheadFlightPath.copy()

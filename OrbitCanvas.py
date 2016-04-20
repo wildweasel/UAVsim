@@ -14,37 +14,38 @@ class OrbitCanvas(OpenCVCanvas):
 		self.resolution = 20
 		self.orbits = []
 		
-	def addOrbit(self, textVars, xMax, yMax):
-		self.orbits.append(Orbit(xMax, yMax, textVars, self.resolution))		
+	def addOrbit(self, textVars, xMax, yMax, topMenuRow, bottomMenuRow, initValues):
+		self.orbits.append(Orbit(xMax, yMax, textVars, self.resolution, topMenuRow, bottomMenuRow, initValues, self.showFlightPath))		
 
 	def setResolution(self, resolution):		
 		self.resolution = resolution		
 	
-	def loadOverhead(self, focalLength):
+	def loadOverhead(self):
 		loaded = self.loadImage()
 		
 		if(loaded):
 			self.masterOverhead = self.img.copy()
 			for i in range(len(self.orbits)):
 				self.orbits[i].setOverhead(self.masterOverhead)
-				overheadDisplay = self.orbits[i].calcFlightPath(focalLength)
-				if i == 0:
-					self.publishArray(overheadDisplay)
+				# If this was still a range, use first?
+				self.orbits[i].calcFlightPath()
 			
 		return loaded	
-		
-	def changeOrbitParams(self, orbitNumber, cameraMatrix):
-		if orbitNumber >= len(self.orbits):
-			print("Error:  Attempted to changeOrbitParams of an orbitNumber that does not exist")
-			return
+	
+	def showFlightPath(self, pathImage):
+		self.publishArray(pathImage)
+	
+	def enableControls(self):
+		for orbit in self.orbits:
+			orbit.enableControls()	
 			
-		self.publishArray(self.orbits[orbitNumber].calcFlightPath(cameraMatrix))
+	def disableControls(self):
+		for orbit in self.orbits:
+			orbit.disableControls()
 		
+	def run(self, pos, cameraMatrix):
 		
-	def run(self, pos):
-		
-		
-		overhead, cameraImage = self.orbits[int(pos/self.resolution)].mapFlightPath(pos % self.resolution)
+		overhead, cameraImage = self.orbits[int(pos/self.resolution)].mapFlightPath(pos % self.resolution, cameraMatrix)
 		
 		self.publishArray(overhead)
 		

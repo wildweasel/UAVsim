@@ -16,7 +16,6 @@ import threading
 # Set up the orbit step array
 nSteps = 100
 
-
 # Camera parameters
 xFocalLengthInit = 250
 yFocalLengthInit = 250
@@ -41,10 +40,8 @@ yMax = 300
 orbit1Image1Pos = 20
 orbit1Image2Pos = 22
 
-
 imagePos = [orbit1Image1Pos, orbit1Image2Pos]
 images = []
-
 
 class UAVautocalGUI(Tk):
 	
@@ -131,30 +128,10 @@ class UAVautocalGUI(Tk):
 		
 		self.orbitCanvas.setResolution(nSteps)
 
-		centerX1 = StringVar()
-		centerX1.set(centerX1Init)
-		centerY1 = StringVar()
-		centerY1.set(centerY1Init)
-		majorAxis1 = StringVar()
-		majorAxis1.set(majorAxis1Init)
-		minorAxis1 = StringVar()
-		minorAxis1.set(minorAxis1Init)
-		axisYawAngle1 = StringVar()
-		axisYawAngle1.set(axisYawAngle1Init)
-		height1 = StringVar()
-		height1.set(height1Init)
-		cameraUpAngle1 = StringVar()
-		cameraUpAngle1.set(cameraUpAngle1Init)
-		cameraPan1 = StringVar()
-		cameraPan1.set(cameraPan1Init)
-		cameraTilt1 = StringVar()
-		cameraTilt1.set(cameraTilt1Init)
-
-		orbit1TextVars = [majorAxis1, minorAxis1, centerX1, centerY1, axisYawAngle1, height1, cameraPan1, cameraTilt1, cameraUpAngle1]					
-		self.orbitCanvas.addOrbit(orbit1TextVars, xMax, yMax)															
-		self.orbit1Controls = OrbitControl(menu3, menu4, orbit1TextVars, lambda: self.orbitCanvas.changeOrbitParams(0,self.cameraMatrix))		
+		# Orbit parameters
+		orbitInitValues = [majorAxis1Init, minorAxis1Init, centerX1Init, centerY1Init, axisYawAngle1Init, height1Init, cameraPan1Init, cameraTilt1Init, cameraUpAngle1Init]					
 		
-				
+		self.orbitCanvas.addOrbit(orbitInitValues, xMax, yMax, menu3, menu4, orbitInitValues)																	
 		
 		# Where are we in the positional array?
 		self.npos = 0
@@ -172,7 +149,7 @@ class UAVautocalGUI(Tk):
 		   self.buttonState.getState() == ButtonState.ButtonState.State.LOADED:
 		
 			# Get an image
-			if self.orbitCanvas.loadOverhead(self.cameraMatrix):
+			if self.orbitCanvas.loadOverhead():
 				self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
 
 		# Action: Pause
@@ -185,14 +162,14 @@ class UAVautocalGUI(Tk):
 			# Reset the images....
 			self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
 			self.npos = 0
-			self.orbit1Controls.enable()
+			self.orbitCanvas.enableControls()
 			#self.orbitCanvas.changeOrbitParams(self.cameraMatrix)
 			
 	def runButton(self):
 		
 		self.buttonState.setState(ButtonState.ButtonState.State.RUNNING)
 		
-		self.orbit1Controls.disable()
+		self.orbitCanvas.disableControls()
 		
 		# If the worker thread is already active (because we came from PAUSED), 
 		# 	the change to RUNNING state is all that needs done
@@ -236,13 +213,13 @@ class UAVautocalGUI(Tk):
 				
 		# Processing is over.
 		self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
-		self.orbit1Controls.enable()
+		self.orbitCanvas.enableControls()
 
 		self.npos = 0
 
 	def step(self):
 		
-		return self.orbitCanvas.run(self.npos)
+		return self.orbitCanvas.run(self.npos, self.cameraMatrix)
 			
 		
 		
