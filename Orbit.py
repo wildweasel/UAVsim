@@ -5,13 +5,18 @@ from OrbitCamera import OrbitCamera
 from OrbitControl import OrbitControl
 from numpy.linalg import inv
 
+# An ellipitcal UAV path
 class Orbit:
 	
 	def __init__(self, xMax, yMax, textVars, resolution, topMenuRow, bottomMenuRow, initValues, showFlightPath):
 		
+		# Pristine, untouched overhead image
 		self.rawOverhead = None
 		
-		self.orbitControls = OrbitControl(topMenuRow, bottomMenuRow, initValues, lambda: self.calcFlightPath())				
+		# Overhead image with just the flight path drawn
+		self.overheadFlightPath = None		
+		
+		self.orbitControls = OrbitControl(topMenuRow, bottomMenuRow, initValues, lambda: self.calcFlightPath(), lambda: self.orientCamera())				
 		[self.majorAxis, self.minorAxis, self.centerX, self.centerY, self.axisYawAngle, self.height, self.cameraPan, 
 		self.cameraTilt, self.cameraUpAngle] = self.orbitControls.returnControlValues()
 		
@@ -21,6 +26,8 @@ class Orbit:
 		self.orbitCamera = OrbitCamera(self.cameraDimensions)
 		
 		self.showFlightPath = showFlightPath
+		
+		self.cameraMatrix = None
 
 	def setOverhead(self, overhead):
 		self.rawOverhead = overhead.copy()
@@ -62,12 +69,38 @@ class Orbit:
 		for pos in self.flightPath:
 			cv2.circle(self.overheadFlightPath, pos[0:2], 10, (255, 255, 0), -1)
 			
-		self.showFlightPath(self.overheadFlightPath)
+		overheadDetail = self.orientCamera()					
 		
-	def mapFlightPath(self, currentPosition, cameraMatrix):
 		
-		self.orbitCamera.buildCamera(cameraMatrix, float(self.cameraPan.get()), float(self.cameraTilt.get()), float(self.cameraUpAngle.get()))
+	def setCameraMatrix(self, cameraMatrix):
+		self.orbitCamera.buildCamera(cameraMatrix)
+				
+	def orientCamera(self):
+		self.orbitCamera.orientCamera(float(self.cameraPan.get()), float(self.cameraTilt.get()), float(self.cameraUpAngle.get()))
+		overheadDetail = self.overheadFlightPath.copy()
+		self.drawCameraStare(self.flightPath[0], self.flightHeadings[0], overheadDetail)	
+		self.showFlightPath(overheadDetail)		
+		
+	def drawCameraStare(self, pos, heading, currentOverheadPath):	
 
+		# Draw a red 'X' at our current position
+		cv2.line(currentOverheadPath, (pos[0]-15,pos[1]-15), (pos[0]+15,pos[1]+15), (255,0,0), 10)
+		cv2.line(currentOverheadPath, (pos[0]-15,pos[1]+15), (pos[0]+15,pos[1]-15), (255,0,0), 10)
+		
+		# Find the transformation matrix for our current UAV camera view
+		homography = self.orbitCamera.moveCamera(pos, heading)
+		
+		# Map the camera view corners back to the points on the overhead...
+		corners = [[0,0,1],[self.cameraDimensions[0], 0, 1],[self.cameraDimensions[0], self.cameraDimensions[1], 1],[0, self.cameraDimensions[1], 1]]
+		invH = inv(homography)		
+		cornersI = [p2eI(invH.dot(x)) for x in corners]
+		# ... so we can show the portion of the overhead we're currently looking at
+		for i in range(len(cornersI)):		
+			cv2.line(currentOverheadPath, cornersI[i], cornersI[i-1], (255,0,255), 3)
+			
+		return homography
+		
+	def mapFlightPath(self, currentPosition, cameraMatrix):		
 		
 		# To draw the markers that change as the UAV moves
 		currentOverheadPath = self.overheadFlightPath.copy()
@@ -76,20 +109,7 @@ class Orbit:
 		pos = self.flightPath[currentPosition]
 		heading = self.flightHeadings[currentPosition]
 			
-		# Draw a red 'X' at our current position
-		cv2.line(currentOverheadPath, (pos[0]-15,pos[1]-15), (pos[0]+15,pos[1]+15), (255,0,0), 10)
-		cv2.line(currentOverheadPath, (pos[0]-15,pos[1]+15), (pos[0]+15,pos[1]-15), (255,0,0), 10)		
-				
-		# Find the transformation matrix for our current UAV camera view
-		homography = self.orbitCamera.moveCamera(pos, heading)
-						
-		# Map the camera view corners back to the points on the overhead...
-		corners = [[0,0,1],[self.cameraDimensions[0], 0, 1],[self.cameraDimensions[0], self.cameraDimensions[1], 1],[0, self.cameraDimensions[1], 1]]
-		invH = inv(homography)		
-		cornersI = [p2eI(invH.dot(x)) for x in corners]
-		# ... so we can show the portion of the overhead we're currently looking at
-		for i in range(len(cornersI)):		
-			cv2.line(currentOverheadPath, cornersI[i], cornersI[i-1], (255,0,255), 3)
+		homography = self.drawCameraStare(pos, heading, currentOverheadPath)
 
 		return currentOverheadPath, cv2.warpPerspective(self.rawOverhead, homography, self.cameraDimensions)
 		

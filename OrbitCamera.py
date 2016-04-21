@@ -6,11 +6,12 @@ class OrbitCamera:
 	def __init__(self, imageSize):
 		self.imageSize = imageSize
 		
-	def buildCamera(self, cameraMatrix, pan, tilt, up):		
+	def buildCamera(self, cameraMatrix):		
 	
 		# Intrinsic Camera Matrix
 		self.intrinsicCameraMatrix = cameraMatrix
 		
+	def orientCamera(self, pan, tilt, up):
 		# Extrinsic Parameters
 		self.pan = pan
 		self.tilt = tilt
@@ -23,17 +24,22 @@ class OrbitCamera:
 		#	positive y-axis:  South
 		#	positive z-axis:  Up		
 		# Camera Translation - where is the UAV?
-		translation = np.array([[1,0,0,-pos[0]],
-								[0,1,0,-pos[1]],
-								[0,0,1,-pos[2]]])
+		#translation = np.array([[1,0,0,-pos[0]],
+		#						[0,1,0,-pos[1]],
+		#						[0,0,1,-pos[2]]])
 		
 		# 3-D UAV (camera) coords:  
 		#	positive x-axis:  South
 		#	positive y-axis:  Down
 		#	positive z-axis:  East
-		axesAdj = np.array( [[0, 1, 0],
-							 [0, 0, -1],
-							 [1, 0, 0]])
+		#axesAdj = np.array( [[0, 1, 0],
+		#					 [0, 0, -1],
+		#					 [1, 0, 0]])
+
+		# Pre-combine translation and axesAdj
+		transAxes = np.array( [[0, 1,  0, -pos[1]],
+							   [0, 0, -1,  pos[2]],
+							   [1, 0,  0, -pos[0]]])
 
 		# This camera pans (with heading) first, then tilts, then adjusts up
 		# http://planning.cs.uiuc.edu/node102.html
@@ -60,11 +66,12 @@ class OrbitCamera:
 		R = yaw.dot(roll.dot(pitch))
 
 				
-		extrinsic = R.dot(axesAdj.dot(translation))
+		#extrinsic = R.dot(axesAdj.dot(translation))
+		extrinsic = R.dot(transAxes)
 		
-		homography = np.delete(self.intrinsicCameraMatrix.dot(extrinsic), 2, 1)
+		#homography = np.delete(self.intrinsicCameraMatrix.dot(extrinsic), 2, 1)
 		
-		return homography
+		return np.delete(self.intrinsicCameraMatrix.dot(extrinsic), 2, 1)
 		
 		
 		

@@ -133,6 +133,9 @@ class UAVautocalGUI(Tk):
 		
 		self.orbitCanvas.addOrbit(orbitInitValues, xMax, yMax, menu3, menu4, orbitInitValues)																	
 		
+		# Can't set the camera in the individual orbits until after the orbits are built
+		self.orbitCanvas.setCamera(self.cameraMatrix)
+		
 		# Where are we in the positional array?
 		self.npos = 0
 		
@@ -141,6 +144,7 @@ class UAVautocalGUI(Tk):
 		
 	def editCameraMatrix(self, pos, value):
 		self.cameraMatrix[pos] = value
+		self.orbitCanvas.setCamera(self.cameraMatrix)
 		
 	def actionButton(self):
 
@@ -163,7 +167,7 @@ class UAVautocalGUI(Tk):
 			self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
 			self.npos = 0
 			self.orbitCanvas.enableControls()
-			#self.orbitCanvas.changeOrbitParams(self.cameraMatrix)
+			self.orbitCanvas.changeOrbitParams()
 			
 	def runButton(self):
 		
@@ -220,8 +224,6 @@ class UAVautocalGUI(Tk):
 	def step(self):
 		
 		return self.orbitCanvas.run(self.npos, self.cameraMatrix)
-			
-		
 		
 app = UAVautocalGUI()
 app.mainloop()

@@ -1,13 +1,16 @@
 from tkinter import *
 
-# Helper class to handle all UAV orbit parameter controls
+# Helper class to orgainize and handle all UAV orbit parameter controls
 class OrbitControl:
 	
-	def __init__(self, topMenuRow, bottomMenuRow, initValues, calcFlightPath):	
+	# The rows are where to display the controls, calcFlightPath is the Orbit class's function to recalculate its flight path	
+	#	moveCamera is the Orbit class's function to change the camera orientation
+	def __init__(self, topMenuRow, bottomMenuRow, initValues, calcFlightPath, orientCamera):	
 		
-		# The input text variables need to be in this order
+		# The input text initialization values need to be in this order
 		[majorAxisInit, minorAxisInit, centerXInit, centerYInit, axisYawAngleInit, heightInit, cameraPanInit, cameraTiltInit, cameraUpAngleInit] = initValues
 		
+		# Instantiate and initialize the orbit parameters
 		centerX = StringVar()
 		centerX.set(centerXInit)
 		centerY = StringVar()
@@ -59,24 +62,27 @@ class OrbitControl:
 				
 		# Camera Pan
 		Label(bottomMenuRow, text = "Orbit1 Camera Pan").pack(side=LEFT)
-		camera1PanSpinbox = Spinbox(bottomMenuRow, from_=-90, to=90, increment=5, textvariable=cameraPan, command=calcFlightPath)
+		camera1PanSpinbox = Spinbox(bottomMenuRow, from_=-90, to=90, increment=5, textvariable=cameraPan, command=orientCamera)
 		camera1PanSpinbox.pack(side=LEFT)
 
 		# Camera Tilt
 		Label(bottomMenuRow, text = "Orbit1 Camera Tilt").pack(side=LEFT)
-		camera1TiltSpinbox = Spinbox(bottomMenuRow, from_=-180, to=180, increment=5, textvariable=cameraTilt, command=calcFlightPath)
+		camera1TiltSpinbox = Spinbox(bottomMenuRow, from_=-180, to=180, increment=5, textvariable=cameraTilt, command=orientCamera)
 		camera1TiltSpinbox.pack(side=LEFT)
 
 		# Camera Up Angle
 		Label(bottomMenuRow, text = "Orbit1 Camera Up Angle").pack(side=LEFT)
-		orbit1CameraUpAngleSpinbox = Spinbox(bottomMenuRow, from_=-90, to=90, increment=5, textvariable=cameraUpAngle, command=calcFlightPath)
+		orbit1CameraUpAngleSpinbox = Spinbox(bottomMenuRow, from_=-90, to=90, increment=5, textvariable=cameraUpAngle, command=orientCamera)
 		orbit1CameraUpAngleSpinbox.pack(side=LEFT)
 		
+		# Need to share these with the associated orbit
 		self.orbitVars = [majorAxis, minorAxis, centerX, centerY, axisYawAngle, height, cameraPan, cameraTilt, cameraUpAngle]
 		
+		# Store these for enable/disable
 		self.orbitControls = [orbit1MajorSpinbox, orbit1MinorSpinbox, orbit1CenterXSpinbox, orbit1CenterYSpinbox, orbit1YawAngleSpinbox, 
 							  orbit1HeightSpinbox, camera1PanSpinbox, camera1TiltSpinbox, camera1TiltSpinbox, orbit1CameraUpAngleSpinbox]
 				
+	# pass back the orbit parameters (as Tkinter StringVar's)
 	def returnControlValues(self):
 		return self.orbitVars
 
