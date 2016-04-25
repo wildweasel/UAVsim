@@ -49,8 +49,8 @@ class Orbit:
 	# Calculate the flight path and draw the flight path and initial camera stare on the overhead
 	def calcFlightPath(self):
 
-		if self.rawOverhead is None:
-			print("Error: Attempted to calcFlightPath while self.rawOverhead was None")
+		# Don't calculate for pre-load parameter changes
+		if self.rawOverhead is None:			
 			return
 		
 		# Ellipse parameters
