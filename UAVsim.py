@@ -13,6 +13,14 @@ from OrbitControl import OrbitControl
 import ButtonState
 import threading
 
+# 4/25 knock list
+# Disable Camera Controls
+# Make nSteps a parameter
+# Noise injection
+# Make take pictures a parameter (store UAV cam images)
+# README
+# Example video
+
 # Set up the orbit step array
 nSteps = 100
 
@@ -37,9 +45,9 @@ cameraUpAngle1Init = 0
 xMax = 400
 yMax = 300
 
+# Positions in the orbit where we should store the UAV camera view (i.e. take a picture)
 orbit1Image1Pos = 20
 orbit1Image2Pos = 22
-
 imagePos = [orbit1Image1Pos, orbit1Image2Pos]
 images = []
 
@@ -91,46 +99,47 @@ class UAVautocalGUI(Tk):
 				
 		# Video screens
 		self.orbitCanvas = OrbitCanvas(videoRow1, height=windowHeight, width=windowWidth)
-		self.orbitCanvas.pack(side=LEFT)
-		
+		self.orbitCanvas.pack(side=LEFT)		
 		self.videoCanvas2 = OpenCVCanvas(videoRow1, height=windowHeight, width=windowWidth)
-		self.videoCanvas2.pack(side=LEFT)
-		
-		self.videoCanvas3 = OpenCVCanvas(videoRow1, height=windowHeight, width=windowWidth)
-		self.videoCanvas3.pack(side=LEFT)
+		self.videoCanvas2.pack(side=LEFT)			
 		
 		# Camera Parameters		
 		self.cameraMatrix = np.array([[xFocalLengthInit, 0, cameraCenterXInit+xMax/2],[0, yFocalLengthInit, cameraCenterYInit+yMax/2],[0,0,1]])
 		
+		# fX - camera focal length in image X direction
 		self.cameraXFocalLength = StringVar()
 		self.cameraXFocalLength.set(xFocalLengthInit)
 		Label(menu2, text = "fX Focal Length").pack(side=LEFT)
 		cameraXFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraXFocalLength, command=lambda: self.editCameraMatrix((0,0), float(self.cameraXFocalLength.get())))
 		cameraXFocalLengthSpinbox.pack(side=LEFT)
-		
+
+		# fy - camera focal length in image Y direction		
 		self.cameraYFocalLength = StringVar()
 		self.cameraYFocalLength.set(yFocalLengthInit)
 		Label(menu2, text = "fY Focal Length").pack(side=LEFT)
 		cameraYFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraYFocalLength, command=lambda: self.editCameraMatrix((1,1), float(self.cameraYFocalLength.get())))
 		cameraYFocalLengthSpinbox.pack(side=LEFT)
 		
+		# tx - camera image center offset (pixels) in image X direction		
 		self.cameraCenterX = StringVar()
 		self.cameraCenterX.set(cameraCenterXInit)
 		Label(menu2, text = "Camera Center Offset X").pack(side=LEFT)
 		cameraCenterXSpinbox = Spinbox(menu2, from_= -200, to=200, increment=10, textvariable=self.cameraCenterX, command=lambda: self.editCameraMatrix((0,2), float(self.cameraCenterX.get())))
 		cameraCenterXSpinbox.pack(side=LEFT)
 		
+		# ty - camera image center offset (pixels) in image Y direction		
 		self.cameraCenterY = StringVar()
 		self.cameraCenterY.set(cameraCenterYInit)
 		Label(menu2, text = "Camera Center Offset Y").pack(side=LEFT)
 		cameraCenterYSpinbox = Spinbox(menu2, from_= -20, to=200, increment=10, textvariable=self.cameraCenterY, command=lambda: self.editCameraMatrix((1,2), float(self.cameraCenterY.get())))
 		cameraCenterYSpinbox.pack(side=LEFT)
-		
+			
 		self.orbitCanvas.setResolution(nSteps)
 
 		# Orbit parameters
 		orbitInitValues = [majorAxis1Init, minorAxis1Init, centerX1Init, centerY1Init, axisYawAngle1Init, height1Init, cameraPan1Init, cameraTilt1Init, cameraUpAngle1Init]					
 		
+		# Add an orbit to the orbit canvas
 		self.orbitCanvas.addOrbit(orbitInitValues, xMax, yMax, menu3, menu4, orbitInitValues)																	
 		
 		# Can't set the camera in the individual orbits until after the orbits are built
@@ -142,37 +151,41 @@ class UAVautocalGUI(Tk):
 		# Initial state of processing thread is empty
 		self.t = None
 		
+	# Change the UAV camera intrinsic paramters
 	def editCameraMatrix(self, pos, value):
 		self.cameraMatrix[pos] = value
 		self.orbitCanvas.setCamera(self.cameraMatrix)
 		
+	# Left button in top menu (changes action with state)
 	def actionButton(self):
 
 		# Action: Load
 		if self.buttonState.getState() == ButtonState.ButtonState.State.INIT or \
 		   self.buttonState.getState() == ButtonState.ButtonState.State.LOADED:
 		
-			# Get an image
+			# Get an overhead image
 			if self.orbitCanvas.loadOverhead():
 				self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
 
 		# Action: Pause
 		elif self.buttonState.getState() == ButtonState.ButtonState.State.RUNNING:
 			self.buttonState.setState(ButtonState.ButtonState.State.PAUSED)
-
 			
 		# Action: Reset
 		elif self.buttonState.getState() == ButtonState.ButtonState.State.PAUSED:
-			# Reset the images....
 			self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
+			# Return everything to the initial state
 			self.npos = 0
 			self.orbitCanvas.enableControls()
+			# This call will reset the overhead drawings
 			self.orbitCanvas.changeOrbitParams()
 			
+	# Right button is always the run button
 	def runButton(self):
 		
 		self.buttonState.setState(ButtonState.ButtonState.State.RUNNING)
 		
+		# Don't allow parameter changes during flight
 		self.orbitCanvas.disableControls()
 		
 		# If the worker thread is already active (because we came from PAUSED), 
@@ -187,9 +200,11 @@ class UAVautocalGUI(Tk):
 		# because this is a daemon, it will die when the main window dies
 		self.t.setDaemon(True)
 		self.t.start()
-			
+	
+	# Run sim - fly the UAV
 	def flyUAV(self):
 				
+		# Go through the whole ellipse from 0 to 2 Pi
 		while self.npos < nSteps:
 			
 			# If we're paused, just chill
@@ -199,15 +214,19 @@ class UAVautocalGUI(Tk):
 			# If we're reset, get out
 			if self.buttonState.getState() == ButtonState.ButtonState.State.LOADED:
 				break
-											
-			UAVview = self.step()
+			
+			# Calculate and draw the next UAV step				
+			UAVview = self.orbitCanvas.step(self.npos, self.cameraMatrix)
+			# Show the UAV camera image
 			self.videoCanvas2.publishArray(UAVview)
 
+			# Check to see if we should take a picture (store the UAV cam view) at this step
 			for image in imagePos:
 				if self.npos == image:
 					print ("click")
 					images.append(UAVview)
 
+			# advance the step counter
 			self.npos += 1
 			
 			# Have we enabled speed control?
@@ -218,12 +237,12 @@ class UAVautocalGUI(Tk):
 		# Processing is over.
 		self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
 		self.orbitCanvas.enableControls()
-
 		self.npos = 0
+	
+	# Turn off the controls while orbiting
+	def disableControls(self):
+		self.disableControls()
 
-	def step(self):
-		
-		return self.orbitCanvas.run(self.npos, self.cameraMatrix)
 		
 app = UAVautocalGUI()
 app.mainloop()

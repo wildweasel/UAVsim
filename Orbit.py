@@ -6,6 +6,7 @@ from OrbitControl import OrbitControl
 from numpy.linalg import inv
 
 # An ellipitcal UAV path
+# Includes methods to map out an eliptical flight path and return the homography between a ground plane and it's onboard UAV camera
 class Orbit:
 	
 	def __init__(self, xMax, yMax, textVars, resolution, topMenuRow, bottomMenuRow, initValues, showFlightPath):
@@ -16,40 +17,48 @@ class Orbit:
 		# Overhead image with just the flight path drawn
 		self.overheadFlightPath = None		
 		
+		# Hooks to the orbit parameter GUI
 		self.orbitControls = OrbitControl(topMenuRow, bottomMenuRow, initValues, lambda: self.calcFlightPath(), lambda: self.orientCamera())				
 		[self.majorAxis, self.minorAxis, self.centerX, self.centerY, self.axisYawAngle, self.height, self.cameraPan, 
 		self.cameraTilt, self.cameraUpAngle] = self.orbitControls.returnControlValues()
 		
+		# Orbit resolution - steps per single orbit
 		self.resolution = resolution
 		
-		self.cameraDimensions = (xMax, yMax)		
+		# Camera image dimensions
+		self.cameraDimensions = (xMax, yMax)	
+		
+		# Instantiate the camera (i.e. ground plane -> camera image homography)	
 		self.orbitCamera = OrbitCamera(self.cameraDimensions)
 		
+		# Function to republish the flight path map upon parameter change
 		self.showFlightPath = showFlightPath
 		
-		self.cameraMatrix = None
-
+	# Set the overhead (image of the ground plane)
 	def setOverhead(self, overhead):
 		self.rawOverhead = overhead.copy()
-		
+	
+	# pass through to deactivate the orbit controls while an orbit is running
 	def enableControls(self):
 		self.orbitControls.enable()
-		
+	
+	# pass through to re-activate the orbit controls when an orbit is done	
 	def disableControls(self):
 		self.orbitControls.disable()
 	
+	# Calculate the flight path and draw the flight path and initial camera stare on the overhead
 	def calcFlightPath(self):
 		
 		if self.rawOverhead is None:
 			print("Error: Attempted to calcFlightPath while self.rawOverhead was None")
 			return
 		
+		# Ellipse parameters
 		a = float(self.majorAxis.get())
 		b = float(self.minorAxis.get())
 		offsetX = self.rawOverhead.shape[1]/2 + int(self.centerX.get())
 		offsetY = self.rawOverhead.shape[0]/2 - int(self.centerY.get())
-		alpha = float(self.axisYawAngle.get())/180*np.pi
-		
+		alpha = float(self.axisYawAngle.get())/180*np.pi		
 		height = float(self.height.get())
 		
 		# Flight path equation - parametric equation of elipse
@@ -64,22 +73,24 @@ class Orbit:
 		self.flightHeadings = [np.arctan2(-a*np.sin(t)*np.sin(alpha)+b*np.cos(t)*np.cos(alpha),
 							   -a*np.sin(t)*np.cos(alpha)-b*np.cos(t)*np.sin(alpha)) for t in np.linspace(0,2*np.pi,self.resolution)]
 		
-		self.overheadFlightPath = self.rawOverhead.copy()	
-		
+		# We will re-use the overhead image, so make a copy to draw the flight path on
+		self.overheadFlightPath = self.rawOverhead.copy()			
 		for pos in self.flightPath:
 			cv2.circle(self.overheadFlightPath, pos[0:2], 10, (255, 255, 0), -1)
-			
+
+		# Set up the camera and draw its stare
 		overheadDetail = self.orientCamera()					
 		
-		
+	# Load the intrinsic camera matrix
 	def setCameraMatrix(self, cameraMatrix):
 		self.orbitCamera.buildCamera(cameraMatrix)
 				
 	def orientCamera(self):
 		self.orbitCamera.orientCamera(float(self.cameraPan.get()), float(self.cameraTilt.get()), float(self.cameraUpAngle.get()))
-		overheadDetail = self.overheadFlightPath.copy()
-		self.drawCameraStare(self.flightPath[0], self.flightHeadings[0], overheadDetail)	
-		self.showFlightPath(overheadDetail)		
+		if self.overheadFlightPath is not None:
+			overheadDetail = self.overheadFlightPath.copy()
+			self.drawCameraStare(self.flightPath[0], self.flightHeadings[0], overheadDetail)	
+			self.showFlightPath(overheadDetail)		
 		
 	def drawCameraStare(self, pos, heading, currentOverheadPath):	
 
@@ -113,5 +124,6 @@ class Orbit:
 
 		return currentOverheadPath, cv2.warpPerspective(self.rawOverhead, homography, self.cameraDimensions)
 		
+# Helper method to convert homogenous coordinates into euclidean coordinates
 def p2eI(perspectiveCoord):
 	return tuple([int(x) for x in perspectiveCoord[0:-1]/perspectiveCoord[-1]])

@@ -86,10 +86,12 @@ class OrbitControl:
 	def returnControlValues(self):
 		return self.orbitVars
 
+	# Shut down the parameter change widgets
 	def disable(self):
 		for control in self.orbitControls:
 			control.config(state="disabled")
-
+			
+	# Activate the parameter change widgets
 	def enable(self):
 		for control in self.orbitControls:
 			control.config(state="normal")

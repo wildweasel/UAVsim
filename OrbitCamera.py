@@ -1,22 +1,23 @@
 import numpy as np
 import cv2
 
+# Class to build the ground plane to image homography for an orbit
 class OrbitCamera:
 	
 	def __init__(self, imageSize):
 		self.imageSize = imageSize
 		
-	def buildCamera(self, cameraMatrix):		
-	
-		# Intrinsic Camera Matrix
+	# Load the intrinsic matrix
+	def buildCamera(self, cameraMatrix):			
 		self.intrinsicCameraMatrix = cameraMatrix
-		
+
+	# Load the extrinsic rotation parameters - (0,0,0) is straight out the UAV nose, paralell to the ground plane
 	def orientCamera(self, pan, tilt, up):
-		# Extrinsic Parameters
 		self.pan = pan
 		self.tilt = tilt
 		self.up = up
 
+	# Given a UAV heading and position, build the ground plane to camera image homography
 	def moveCamera(self, pos, heading):
 				
 		# 3-D World (input overhead image) coords:
@@ -62,16 +63,18 @@ class OrbitCamera:
 		yaw = np.array([[np.cos(a), -np.sin(a), 0],
 					  [np.sin(a),  np.cos(a), 0],
 					  [0,0,1]])
-					  
+		
+		# Assemble the rotation matrix - for our setup, pitch/pan first, then roll/tilt, and finally yaw/up
 		R = yaw.dot(roll.dot(pitch))
 
-				
-		#extrinsic = R.dot(axesAdj.dot(translation))
+		# Combine the translation and rotation matrices		
 		extrinsic = R.dot(transAxes)
 		
-		#homography = np.delete(self.intrinsicCameraMatrix.dot(extrinsic), 2, 1)
+		# Get the ground plane to image homography.
+		# We can drop the third column because we only care about the z=0 ground plane
+		homography = np.delete(self.intrinsicCameraMatrix.dot(extrinsic), 2, 1)
 		
-		return np.delete(self.intrinsicCameraMatrix.dot(extrinsic), 2, 1)
+		return homography
 		
 		
 		
