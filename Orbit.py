@@ -48,7 +48,7 @@ class Orbit:
 	
 	# Calculate the flight path and draw the flight path and initial camera stare on the overhead
 	def calcFlightPath(self):
-		
+
 		if self.rawOverhead is None:
 			print("Error: Attempted to calcFlightPath while self.rawOverhead was None")
 			return
@@ -79,7 +79,11 @@ class Orbit:
 			cv2.circle(self.overheadFlightPath, pos[0:2], 10, (255, 255, 0), -1)
 
 		# Set up the camera and draw its stare
-		overheadDetail = self.orientCamera()					
+		overheadDetail = self.orientCamera()	
+		
+	# Set the number of steps of the orbit
+	def setResolution(self, resolution):
+		self.resolution = resolution		
 		
 	# Load the intrinsic camera matrix
 	def setCameraMatrix(self, cameraMatrix):

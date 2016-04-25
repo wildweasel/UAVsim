@@ -14,21 +14,23 @@ import ButtonState
 import threading
 
 # 4/25 knock list
-# Disable Camera Controls
-# Make nSteps a parameter
 # Noise injection
 # Make take pictures a parameter (store UAV cam images)
 # README
 # Example video
 
 # Set up the orbit step array
-nSteps = 100
+nStepsInit = 100
+
+# Corners of the UAV camera view
+xMax = 400
+yMax = 300
 
 # Camera parameters
 xFocalLengthInit = 250
 yFocalLengthInit = 250
-cameraCenterXInit = 0
-cameraCenterYInit = 0
+cameraCenterXInit = xMax / 2
+cameraCenterYInit = yMax / 2
 
 # Default flight parameters
 centerX1Init = 0
@@ -40,10 +42,6 @@ height1Init = 150
 cameraPan1Init = -90
 cameraTilt1Init = 45
 cameraUpAngle1Init = 0
-
-# Corners of the UAV camera view
-xMax = 400
-yMax = 300
 
 # Positions in the orbit where we should store the UAV camera view (i.e. take a picture)
 orbit1Image1Pos = 20
@@ -93,6 +91,12 @@ class UAVautocalGUI(Tk):
 		Label(menu1, text = "Speed").pack(side=LEFT)
 		Spinbox(menu1, from_=0, to=1, increment=.1, textvariable=self.delay).pack(side=LEFT)
 		
+		self.nSteps = StringVar()
+		self.nSteps.set(nStepsInit)
+		Label(menu1, text = "Orbit Resolution").pack(side=LEFT)
+		self.nStepsSpinbox = Spinbox(menu1, from_=10, to=1000, increment=10, textvariable=self.nSteps, command=lambda: self.setResolution())
+		self.nStepsSpinbox.pack(side=LEFT)
+		
 		# Display video(s) row
 		videoRow1 = Frame(self)
 		videoRow1.pack()
@@ -104,37 +108,37 @@ class UAVautocalGUI(Tk):
 		self.videoCanvas2.pack(side=LEFT)			
 		
 		# Camera Parameters		
-		self.cameraMatrix = np.array([[xFocalLengthInit, 0, cameraCenterXInit+xMax/2],[0, yFocalLengthInit, cameraCenterYInit+yMax/2],[0,0,1]])
+		self.cameraMatrix = np.array([[xFocalLengthInit, 0, cameraCenterXInit],[0, yFocalLengthInit, cameraCenterYInit],[0,0,1]])
 		
 		# fX - camera focal length in image X direction
 		self.cameraXFocalLength = StringVar()
 		self.cameraXFocalLength.set(xFocalLengthInit)
 		Label(menu2, text = "fX Focal Length").pack(side=LEFT)
-		cameraXFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraXFocalLength, command=lambda: self.editCameraMatrix((0,0), float(self.cameraXFocalLength.get())))
-		cameraXFocalLengthSpinbox.pack(side=LEFT)
+		self.cameraXFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraXFocalLength, command=lambda: self.editCameraMatrix((0,0), float(self.cameraXFocalLength.get())))
+		self.cameraXFocalLengthSpinbox.pack(side=LEFT)
 
 		# fy - camera focal length in image Y direction		
 		self.cameraYFocalLength = StringVar()
 		self.cameraYFocalLength.set(yFocalLengthInit)
 		Label(menu2, text = "fY Focal Length").pack(side=LEFT)
-		cameraYFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraYFocalLength, command=lambda: self.editCameraMatrix((1,1), float(self.cameraYFocalLength.get())))
-		cameraYFocalLengthSpinbox.pack(side=LEFT)
+		self.cameraYFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraYFocalLength, command=lambda: self.editCameraMatrix((1,1), float(self.cameraYFocalLength.get())))
+		self.cameraYFocalLengthSpinbox.pack(side=LEFT)
 		
 		# tx - camera image center offset (pixels) in image X direction		
 		self.cameraCenterX = StringVar()
 		self.cameraCenterX.set(cameraCenterXInit)
 		Label(menu2, text = "Camera Center Offset X").pack(side=LEFT)
-		cameraCenterXSpinbox = Spinbox(menu2, from_= -200, to=200, increment=10, textvariable=self.cameraCenterX, command=lambda: self.editCameraMatrix((0,2), float(self.cameraCenterX.get())))
-		cameraCenterXSpinbox.pack(side=LEFT)
+		self.cameraCenterXSpinbox = Spinbox(menu2, from_= 0, to=xMax, increment=10, textvariable=self.cameraCenterX, command=lambda: self.editCameraMatrix((0,2), float(self.cameraCenterX.get())))
+		self.cameraCenterXSpinbox.pack(side=LEFT)
 		
 		# ty - camera image center offset (pixels) in image Y direction		
 		self.cameraCenterY = StringVar()
 		self.cameraCenterY.set(cameraCenterYInit)
 		Label(menu2, text = "Camera Center Offset Y").pack(side=LEFT)
-		cameraCenterYSpinbox = Spinbox(menu2, from_= -20, to=200, increment=10, textvariable=self.cameraCenterY, command=lambda: self.editCameraMatrix((1,2), float(self.cameraCenterY.get())))
-		cameraCenterYSpinbox.pack(side=LEFT)
+		self.cameraCenterYSpinbox = Spinbox(menu2, from_= 0, to=yMax, increment=10, textvariable=self.cameraCenterY, command=lambda: self.editCameraMatrix((1,2), float(self.cameraCenterY.get())))
+		self.cameraCenterYSpinbox.pack(side=LEFT)
 			
-		self.orbitCanvas.setResolution(nSteps)
+		self.orbitCanvas.setResolution(int(self.nSteps.get()))
 
 		# Orbit parameters
 		orbitInitValues = [majorAxis1Init, minorAxis1Init, centerX1Init, centerY1Init, axisYawAngle1Init, height1Init, cameraPan1Init, cameraTilt1Init, cameraUpAngle1Init]					
@@ -150,6 +154,10 @@ class UAVautocalGUI(Tk):
 		
 		# Initial state of processing thread is empty
 		self.t = None
+		
+	# Change the orbit resoltions (number of steps between 0 and 2 Pi)
+	def setResolution(self):
+		self.orbitCanvas.setResolution(int(self.nSteps.get()))
 		
 	# Change the UAV camera intrinsic paramters
 	def editCameraMatrix(self, pos, value):
@@ -176,7 +184,7 @@ class UAVautocalGUI(Tk):
 			self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
 			# Return everything to the initial state
 			self.npos = 0
-			self.orbitCanvas.enableControls()
+			self.enableControls()
 			# This call will reset the overhead drawings
 			self.orbitCanvas.changeOrbitParams()
 			
@@ -186,7 +194,7 @@ class UAVautocalGUI(Tk):
 		self.buttonState.setState(ButtonState.ButtonState.State.RUNNING)
 		
 		# Don't allow parameter changes during flight
-		self.orbitCanvas.disableControls()
+		self.disableControls()
 		
 		# If the worker thread is already active (because we came from PAUSED), 
 		# 	the change to RUNNING state is all that needs done
@@ -205,7 +213,7 @@ class UAVautocalGUI(Tk):
 	def flyUAV(self):
 				
 		# Go through the whole ellipse from 0 to 2 Pi
-		while self.npos < nSteps:
+		while self.npos < int(self.nSteps.get()):
 			
 			# If we're paused, just chill
 			if self.buttonState.getState() == ButtonState.ButtonState.State.PAUSED:
@@ -236,13 +244,26 @@ class UAVautocalGUI(Tk):
 				
 		# Processing is over.
 		self.buttonState.setState(ButtonState.ButtonState.State.LOADED)
-		self.orbitCanvas.enableControls()
+		self.enableControls()
 		self.npos = 0
 	
 	# Turn off the controls while orbiting
 	def disableControls(self):
-		self.disableControls()
+		self.orbitCanvas.disableControls()
+		self.cameraXFocalLengthSpinbox.config(state="disabled")
+		self.cameraYFocalLengthSpinbox.config(state="disabled")
+		self.cameraCenterYSpinbox.config(state="disabled")
+		self.cameraCenterXSpinbox.config(state="disabled")
+		self.nStepsSpinbox.config(state="disabled")
 
+	# Turn the controls back on when done
+	def enableControls(self):
+		self.orbitCanvas.enableControls()
+		self.cameraXFocalLengthSpinbox.config(state="normal")
+		self.cameraYFocalLengthSpinbox.config(state="normal")
+		self.cameraCenterYSpinbox.config(state="normal")
+		self.cameraCenterXSpinbox.config(state="normal")
+		self.nStepsSpinbox.config(state="normal")
 		
 app = UAVautocalGUI()
 app.mainloop()

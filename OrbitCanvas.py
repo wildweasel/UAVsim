@@ -23,7 +23,10 @@ class OrbitCanvas(OpenCVCanvas):
 		self.orbits.append(Orbit(xMax, yMax, textVars, self.resolution, topMenuRow, bottomMenuRow, initValues, self.showFlightPath))		
 
 	def setResolution(self, resolution):		
-		self.resolution = resolution		
+		self.resolution = resolution
+		for i in range(len(self.orbits)):
+			self.orbits[i].setResolution(resolution)		
+			self.orbits[i].calcFlightPath()	
 	
 	# Pull in an overhead image to act as the UAV scene ground plane
 	def loadOverhead(self):
@@ -48,6 +51,7 @@ class OrbitCanvas(OpenCVCanvas):
 	def setCamera(self, cameraMatrix):
 		for i in range(len(self.orbits)):
 				self.orbits[i].setCameraMatrix(cameraMatrix)
+				self.orbits[i].calcFlightPath()
 
 	# Draw the flight path to the GUI
 	def showFlightPath(self, pathImage):
