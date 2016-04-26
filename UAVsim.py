@@ -10,6 +10,7 @@ from OpenCVCanvas import OpenCVCanvas
 from OrbitCanvas import OrbitCanvas
 from Orbit import Orbit
 from OrbitControl import OrbitControl
+from CameraMatrixControls import CameraMatrixControls
 import ButtonState
 import threading
 
@@ -91,6 +92,7 @@ class UAVautocalGUI(Tk):
 		Label(menu1, text = "Speed").pack(side=LEFT)
 		Spinbox(menu1, from_=0, to=1, increment=.1, textvariable=self.delay).pack(side=LEFT)
 		
+		# Allow the user to change the number of steps in the orbit
 		self.nSteps = StringVar()
 		self.nSteps.set(nStepsInit)
 		Label(menu1, text = "Orbit Resolution").pack(side=LEFT)
@@ -107,36 +109,12 @@ class UAVautocalGUI(Tk):
 		self.videoCanvas2 = OpenCVCanvas(videoRow1, height=windowHeight, width=windowWidth)
 		self.videoCanvas2.pack(side=LEFT)			
 		
-		# Camera Parameters		
+		# Intrinsic camera matrix
 		self.cameraMatrix = np.array([[xFocalLengthInit, 0, cameraCenterXInit],[0, yFocalLengthInit, cameraCenterYInit],[0,0,1]])
-		
-		# fX - camera focal length in image X direction
-		self.cameraXFocalLength = StringVar()
-		self.cameraXFocalLength.set(xFocalLengthInit)
-		Label(menu2, text = "fX Focal Length").pack(side=LEFT)
-		self.cameraXFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraXFocalLength, command=lambda: self.editCameraMatrix((0,0), float(self.cameraXFocalLength.get())))
-		self.cameraXFocalLengthSpinbox.pack(side=LEFT)
 
-		# fy - camera focal length in image Y direction		
-		self.cameraYFocalLength = StringVar()
-		self.cameraYFocalLength.set(yFocalLengthInit)
-		Label(menu2, text = "fY Focal Length").pack(side=LEFT)
-		self.cameraYFocalLengthSpinbox = Spinbox(menu2, from_= 10, to=1000, increment=10, textvariable=self.cameraYFocalLength, command=lambda: self.editCameraMatrix((1,1), float(self.cameraYFocalLength.get())))
-		self.cameraYFocalLengthSpinbox.pack(side=LEFT)
-		
-		# tx - camera image center offset (pixels) in image X direction		
-		self.cameraCenterX = StringVar()
-		self.cameraCenterX.set(cameraCenterXInit)
-		Label(menu2, text = "Camera Center Offset X").pack(side=LEFT)
-		self.cameraCenterXSpinbox = Spinbox(menu2, from_= 0, to=xMax, increment=10, textvariable=self.cameraCenterX, command=lambda: self.editCameraMatrix((0,2), float(self.cameraCenterX.get())))
-		self.cameraCenterXSpinbox.pack(side=LEFT)
-		
-		# ty - camera image center offset (pixels) in image Y direction		
-		self.cameraCenterY = StringVar()
-		self.cameraCenterY.set(cameraCenterYInit)
-		Label(menu2, text = "Camera Center Offset Y").pack(side=LEFT)
-		self.cameraCenterYSpinbox = Spinbox(menu2, from_= 0, to=yMax, increment=10, textvariable=self.cameraCenterY, command=lambda: self.editCameraMatrix((1,2), float(self.cameraCenterY.get())))
-		self.cameraCenterYSpinbox.pack(side=LEFT)
+		# Camera Parameters	GUI controls	
+		cameraMatrixInitValues = [xFocalLengthInit, yFocalLengthInit, cameraCenterXInit, cameraCenterYInit]
+		self.cameraControl = CameraMatrixControls(menu2, cameraMatrixInitValues, self.editCameraMatrix, xMax, yMax)
 			
 		self.orbitCanvas.setResolution(int(self.nSteps.get()))
 
@@ -250,19 +228,13 @@ class UAVautocalGUI(Tk):
 	# Turn off the controls while orbiting
 	def disableControls(self):
 		self.orbitCanvas.disableControls()
-		self.cameraXFocalLengthSpinbox.config(state="disabled")
-		self.cameraYFocalLengthSpinbox.config(state="disabled")
-		self.cameraCenterYSpinbox.config(state="disabled")
-		self.cameraCenterXSpinbox.config(state="disabled")
+		self.cameraControl.disableControls()
 		self.nStepsSpinbox.config(state="disabled")
 
 	# Turn the controls back on when done
 	def enableControls(self):
 		self.orbitCanvas.enableControls()
-		self.cameraXFocalLengthSpinbox.config(state="normal")
-		self.cameraYFocalLengthSpinbox.config(state="normal")
-		self.cameraCenterYSpinbox.config(state="normal")
-		self.cameraCenterXSpinbox.config(state="normal")
+		self.cameraControl.enableControls()
 		self.nStepsSpinbox.config(state="normal")
 		
 app = UAVautocalGUI()
