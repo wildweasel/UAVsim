@@ -8,15 +8,13 @@ from tkinter import *
 from tkinter import filedialog
 from OpenCVCanvas import OpenCVCanvas
 from OrbitCanvas import OrbitCanvas
-from Orbit import Orbit
-from OrbitControl import OrbitControl
+from SnapshotSelectWindow import SnapshotSelectWindow
 from CameraMatrixControls import CameraMatrixControls
 import ButtonState
 import threading
 
-# 4/25 knock list
+# 4/26 knock list
 # Noise injection
-# Make take pictures a parameter (store UAV cam images)
 # README
 # Example video
 
@@ -44,10 +42,7 @@ cameraPan1Init = -90
 cameraTilt1Init = 45
 cameraUpAngle1Init = 0
 
-# Positions in the orbit where we should store the UAV camera view (i.e. take a picture)
-orbit1Image1Pos = 20
-orbit1Image2Pos = 22
-imagePos = [orbit1Image1Pos, orbit1Image2Pos]
+# Stored UAV camera views (i.e. taken pictures)
 images = []
 
 class UAVautocalGUI(Tk):
@@ -99,6 +94,10 @@ class UAVautocalGUI(Tk):
 		self.nStepsSpinbox = Spinbox(menu1, from_=10, to=1000, increment=10, textvariable=self.nSteps, command=lambda: self.setResolution())
 		self.nStepsSpinbox.pack(side=LEFT)
 		
+		# Allow the user to select where the pictures are taken
+		self.snapshotEditButton = Button(menu1, text="Edit Snapshot Locations", command=self.editPictures)
+		self.snapshotEditButton.pack(side=LEFT)
+		
 		# Display video(s) row
 		videoRow1 = Frame(self)
 		videoRow1.pack()
@@ -127,20 +126,39 @@ class UAVautocalGUI(Tk):
 		# Can't set the camera in the individual orbits until after the orbits are built
 		self.orbitCanvas.setCamera(self.cameraMatrix)
 		
+		self.imagePos = []
+		
 		# Where are we in the positional array?
 		self.npos = 0
 		
 		# Initial state of processing thread is empty
 		self.t = None
 		
+		# Inital state of the snapshot select window
+		self.snapshotSelectWindow = None
+		
 	# Change the orbit resoltions (number of steps between 0 and 2 Pi)
 	def setResolution(self):
-		self.orbitCanvas.setResolution(int(self.nSteps.get()))
+		currentNSteps = int(self.nSteps.get())
+		# If the number of steps goes below any position in the snapshot list, delete it
+		self.imagePos = [x for x in self.imagePos if x < currentNSteps]		
+		self.orbitCanvas.setResolution(currentNSteps)
+		# If a Snapshot Select window happens to be open, let it know about the changes to the orbit step range
+		if self.snapshotSelectWindow is not None and self.snapshotSelectWindow.winfo_exists():
+			self.snapshotSelectWindow.changeNSteps(currentNSteps)
 		
 	# Change the UAV camera intrinsic paramters
 	def editCameraMatrix(self, pos, value):
 		self.cameraMatrix[pos] = value
 		self.orbitCanvas.setCamera(self.cameraMatrix)
+		
+	# Invoke the Snapshot select window when the user presses the "Edit Snapshot Locations" button	
+	def editPictures(self):
+		self.snapshotSelectWindow = SnapshotSelectWindow(self.imagePos, int(self.nSteps.get()), self.setImagePos)
+	
+	# Save any accepted changes to the snapshot location list
+	def setImagePos(self, imagePos):
+		self.imagePos = imagePos	
 		
 	# Left button in top menu (changes action with state)
 	def actionButton(self):
@@ -207,9 +225,9 @@ class UAVautocalGUI(Tk):
 			self.videoCanvas2.publishArray(UAVview)
 
 			# Check to see if we should take a picture (store the UAV cam view) at this step
-			for image in imagePos:
+			for image in self.imagePos:
 				if self.npos == image:
-					print ("click")
+					print ("click @ "+str(self.npos))
 					images.append(UAVview)
 
 			# advance the step counter
@@ -230,12 +248,14 @@ class UAVautocalGUI(Tk):
 		self.orbitCanvas.disableControls()
 		self.cameraControl.disableControls()
 		self.nStepsSpinbox.config(state="disabled")
+		self.snapshotEditButton.config(state="disabled")
 
 	# Turn the controls back on when done
 	def enableControls(self):
 		self.orbitCanvas.enableControls()
 		self.cameraControl.enableControls()
 		self.nStepsSpinbox.config(state="normal")
-		
+		self.snapshotEditButton.config(state="normal")
+
 app = UAVautocalGUI()
 app.mainloop()
