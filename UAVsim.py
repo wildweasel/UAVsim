@@ -14,6 +14,7 @@ import ButtonState
 import threading
 
 # 4/26 knock list
+# Snapshot export button
 # Noise injection
 # README
 # Example video
