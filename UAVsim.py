@@ -6,6 +6,7 @@ import numpy as np
 import sys
 from tkinter import *
 from tkinter import filedialog
+from tkinter import messagebox
 from OpenCVCanvas import OpenCVCanvas
 from OrbitCanvas import OrbitCanvas
 from SnapshotSelectWindow import SnapshotSelectWindow
@@ -42,9 +43,6 @@ height1Init = 150
 cameraPan1Init = -90
 cameraTilt1Init = 45
 cameraUpAngle1Init = 0
-
-# Stored UAV camera views (i.e. taken pictures)
-images = []
 
 class UAVautocalGUI(Tk):
 	
@@ -99,6 +97,10 @@ class UAVautocalGUI(Tk):
 		self.snapshotEditButton = Button(menu1, text="Edit Snapshot Locations", command=self.editPictures)
 		self.snapshotEditButton.pack(side=LEFT)
 		
+		# Allow the user to save the pictures 
+		self.snapshotEditButton = Button(menu1, text="Save Snapshots", command=self.savePictures)
+		self.snapshotEditButton.pack(side=LEFT)
+		
 		# Display video(s) row
 		videoRow1 = Frame(self)
 		videoRow1.pack()
@@ -127,8 +129,12 @@ class UAVautocalGUI(Tk):
 		# Can't set the camera in the individual orbits until after the orbits are built
 		self.orbitCanvas.setCamera(self.cameraMatrix)
 		
+		# Locations in the orbit (step positions) at which to take pictures
 		self.imagePos = []
 		
+		# Stored UAV camera views (i.e. taken pictures)
+		self.images = []
+
 		# Where are we in the positional array?
 		self.npos = 0
 		
@@ -137,6 +143,10 @@ class UAVautocalGUI(Tk):
 		
 		# Inital state of the snapshot select window
 		self.snapshotSelectWindow = None
+		
+		# Set up acceptible save image file types
+		self.saveFileOpt = {}
+		self.saveFileOpt['filetypes'] = [('JPEG images', '.jpg'),('PNG images', '.png'),('PPM images', '.ppm')]
 		
 	# Change the orbit resoltions (number of steps between 0 and 2 Pi)
 	def setResolution(self):
@@ -157,6 +167,22 @@ class UAVautocalGUI(Tk):
 	def editPictures(self):
 		self.snapshotSelectWindow = SnapshotSelectWindow(self.imagePos, int(self.nSteps.get()), self.setImagePos)
 	
+	# Ask the user where to save the stored images
+	def savePictures(self):
+		# If the user doesn't have any saved images, let them know
+		if not self.images:
+			messagebox.showinfo("WARNING!", "No Stored Images!")
+		else:
+			saveName = filedialog.asksaveasfilename(**self.saveFileOpt)
+			if saveName:
+				for image in self.images:				
+					# OpenCV writes in BGR - switch from RGB
+					out = cv2.cvtColor(image[1], cv2.COLOR_RGB2BGR)
+					# Jam in the image position number into the filename
+					# (All the save formats have 3 character extensions)
+					outName = saveName[:-4] + str(image[0]) + saveName[-4:]
+					cv2.imwrite(outName, out)
+		
 	# Save any accepted changes to the snapshot location list
 	def setImagePos(self, imagePos):
 		self.imagePos = imagePos	
@@ -208,6 +234,9 @@ class UAVautocalGUI(Tk):
 	
 	# Run sim - fly the UAV
 	def flyUAV(self):
+		
+		# Clear the camera image list
+		self.images = []
 				
 		# Go through the whole ellipse from 0 to 2 Pi
 		while self.npos < int(self.nSteps.get()):
@@ -229,7 +258,7 @@ class UAVautocalGUI(Tk):
 			for image in self.imagePos:
 				if self.npos == image:
 					print ("click @ "+str(self.npos))
-					images.append(UAVview)
+					self.images.append([image, UAVview])
 
 			# advance the step counter
 			self.npos += 1
